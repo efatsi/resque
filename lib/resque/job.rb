@@ -69,14 +69,14 @@ module Resque
         raise DecodeException, e.message, e.backtrace
       end
     end
-    
+
     # Given a word with dashes, returns a camel cased version of it.
     #
     # classify('job-name') # => 'JobName'
     def classify(dashed_word)
       dashed_word.split('-').each { |part| part[0] = part[0].chr.upcase }.join
     end
-    
+
     # Tries to find a constant with the name specified in the argument string:
     #
     # constantize("Module") # => Module
@@ -142,7 +142,7 @@ module Resque
     # pass to the class' `perform` method.
     #
     # Raises an exception if no queue or class is given.
-    def self.create(queue, klass, *args)
+    def self.create(queue, klass, directive, *args)
       Resque.validate(klass, queue)
 
       if Resque.inline?
@@ -150,7 +150,7 @@ module Resque
         # decode(encode(args)) to ensure that args are normalized in the same manner as a non-inline job
         new(:inline, {'class' => klass, 'args' => decode(encode(args))}).perform
       else
-        Resque.push(queue, :class => klass.to_s, :args => args)
+        Resque.push(queue, directive, :class => klass.to_s, :args => args)
       end
     end
 

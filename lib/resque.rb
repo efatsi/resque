@@ -210,10 +210,11 @@ module Resque
   #   Resque.push('archive', :class => 'Archive', :args => [ 35, 'tar' ])
   #
   # Returns nothing
-  def push(queue, item)
+  def push(queue, directive, item)
     redis.pipelined do
       watch_queue(queue)
-      redis.rpush "queue:#{queue}", encode(item)
+      command = directive == :back ? :rpush : :lpush
+      redis.send(command, "queue:#{queue}", encode(item))
     end
   end
 
@@ -294,8 +295,12 @@ module Resque
   # before_enqueue hook.
   #
   # This method is considered part of the `stable` API.
-  def enqueue(klass, *args)
-    enqueue_to(queue_from_class(klass), klass, *args)
+  def enqueue(klass, directive, *args)
+    unless directive.in? [:front, :back]
+      raise "Invalid directive, must be :front or :back, but is :#{directive}"
+    end
+
+    enqueue_to(queue_from_class(klass), klass, directive, *args)
   end
 
   # Just like `enqueue` but allows you to specify the queue you want to
@@ -307,14 +312,14 @@ module Resque
   # before_enqueue hook.
   #
   # This method is considered part of the `stable` API.
-  def enqueue_to(queue, klass, *args)
+  def enqueue_to(queue, klass, directive, *args)
     # Perform before_enqueue hooks. Don't perform enqueue if any hook returns false
     before_hooks = Plugin.before_enqueue_hooks(klass).collect do |hook|
       klass.send(hook, *args)
     end
     return nil if before_hooks.any? { |result| result == false }
 
-    Job.create(queue, klass, *args)
+    Job.create(queue, klass, directive, *args)
 
     Plugin.after_enqueue_hooks(klass).each do |hook|
       klass.send(hook, *args)

@@ -69,7 +69,7 @@ to our application's pre-existing `Repository` class:
 ``` ruby
 class Repository
   def async_create_archive(branch)
-    Resque.enqueue(Archive, self.id, branch)
+    Resque.enqueue(Archive, :back, self.id, branch)
   end
 end
 ```
@@ -79,6 +79,10 @@ application, a job will be created and placed on the `file_serve`
 queue.
 
 Later, a worker will run something like this code to process the job:
+
+###New In This Fork
+
+**Note the `:back` argument. This must either be `:front` or `:back` depending on whether you want the job to be added to the front or the back of the job queue.**
 
 ``` ruby
 klass, args = Resque.reserve(:file_serve)
@@ -157,13 +161,13 @@ Because of this your jobs must only accept arguments that can be JSON encoded.
 So instead of doing this:
 
 ``` ruby
-Resque.enqueue(Archive, self, branch)
+Resque.enqueue(Archive, :front, self, branch)
 ```
 
 do this:
 
 ``` ruby
-Resque.enqueue(Archive, self.id, branch)
+Resque.enqueue(Archive, :front, self.id, branch)
 ```
 
 This is why our above example (and all the examples in `examples/`)
